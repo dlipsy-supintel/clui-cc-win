@@ -16,8 +16,8 @@
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
-    "doctor": "bash scripts/doctor.sh",
-    "postinstall": "electron-builder install-app-deps && bash scripts/patch-dev-icon.sh"
+    "doctor": "node -e \"const p=process.platform==='win32'?'powershell -ExecutionPolicy Bypass -File scripts/doctor.ps1':'bash scripts/doctor.sh';require('child_process').execSync(p,{stdio:'inherit'})\"",
+    "postinstall": "electron-builder install-app-deps && node -e \"if(process.platform==='darwin')require('child_process').execSync('bash scripts/patch-dev-icon.sh',{stdio:'inherit'})\""
   },
   "dependencies": {
     "@phosphor-icons/react": "^2.1.10",
@@ -32,6 +32,14 @@
     "productName": "Clui CC",
     "mac": {
       "icon": "resources/icon.icns"
+    },
+    "win": {
+      "target": ["nsis", "portable"],
+      "icon": "resources/icon.ico"
+    },
+    "linux": {
+      "target": ["AppImage", "deb"],
+      "icon": "resources/icon.png"
     }
   },
   "devDependencies": {

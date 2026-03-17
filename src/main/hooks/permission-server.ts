@@ -61,6 +61,9 @@ const SAFE_BASH_COMMANDS = new Set([
   'tree', 'realpath', 'dirname', 'basename',
   // macOS
   'sw_vers', 'system_profiler', 'defaults', 'mdls', 'mdfind',
+  // Windows — read-only system commands
+  'dir', 'ver', 'systeminfo', 'tasklist', 'ipconfig', 'netstat',
+  'wmic', 'powershell', 'findstr', 'attrib', 'certutil',
   // Diff / compare
   'diff', 'cmp', 'comm', 'sort', 'uniq', 'cut', 'awk', 'sed',
   'jq', 'yq', 'xargs', 'tr',

@@ -1,10 +1,11 @@
-import { spawn, execSync, ChildProcess } from 'child_process'
+import { spawn, ChildProcess } from 'child_process'
 import { EventEmitter } from 'events'
 import { homedir } from 'os'
 import { appendFileSync } from 'fs'
 import { join } from 'path'
 import { StreamParser } from './stream-parser'
 import type { ClaudeEvent, RunOptions } from '../shared/types'
+import { findClaudeBinary, buildEnv, gracefulKill } from './platform-utils'
 
 const LOG_FILE = join(homedir(), '.clui-debug.log')
 
@@ -26,44 +27,12 @@ export interface RunHandle {
 export class ProcessManager extends EventEmitter {
   private activeRuns = new Map<string, RunHandle>()
   private claudeBinary: string
-  private _loginShellPath: string = ''
 
   constructor() {
     super()
     // Find the real claude binary — Electron doesn't inherit shell aliases or full PATH
-    this.claudeBinary = this.findClaudeBinary()
+    this.claudeBinary = findClaudeBinary()
     log(`Claude binary: ${this.claudeBinary}`)
-  }
-
-  private findClaudeBinary(): string {
-    // Try common locations
-    const candidates = [
-      '/usr/local/bin/claude',
-      '/opt/homebrew/bin/claude',
-      join(homedir(), '.npm-global/bin/claude'),
-      join(homedir(), '.nvm/versions/node', '**', 'bin/claude'),
-    ]
-
-    for (const c of candidates) {
-      try {
-        execSync(`test -x "${c}"`, { stdio: 'ignore' })
-        return c
-      } catch {}
-    }
-
-    // Fallback: ask a login shell
-    try {
-      const result = execSync('/bin/zsh -lc "whence -p claude"', { encoding: 'utf-8' }).trim()
-      if (result) return result
-    } catch {}
-
-    try {
-      const result = execSync('/bin/bash -lc "which claude"', { encoding: 'utf-8' }).trim()
-      if (result) return result
-    } catch {}
-
-    // Last resort
-    return 'claude'
   }
 
   startRun(options: RunOptions): RunHandle {
@@ -102,28 +71,8 @@ export class ProcessManager extends EventEmitter {
     log(`Starting run ${runId}: ${this.claudeBinary} ${args.join(' ')}`)
     log(`Prompt: ${options.prompt.substring(0, 200)}`)
 
-    // Build environment: merge login shell PATH with Electron's env
-    // Electron doesn't source ~/.zshrc so PATH is often incomplete
-    const env = { ...process.env }
-    delete env.CLAUDECODE
-
-    // Get the full login shell PATH so npx, node, etc. are available for MCP servers
-    if (!this._loginShellPath) {
-      try {
-        this._loginShellPath = execSync('/bin/zsh -lc "echo $PATH"', { encoding: 'utf-8' }).trim()
-      } catch {
-        this._loginShellPath = ''
-      }
-    }
-    if (this._loginShellPath) {
-      env.PATH = this._loginShellPath
-    }
-
-    // Ensure our claude binary's directory is in PATH
-    const binDir = this.claudeBinary.substring(0, this.claudeBinary.lastIndexOf('/'))
-    if (env.PATH && !env.PATH.includes(binDir)) {
-      env.PATH = `${binDir}:${env.PATH}`
-    }
+    // Build environment: merge login shell PATH with Electron's env (cross-platform)
+    const env = buildEnv(this.claudeBinary)
 
     const child = spawn(this.claudeBinary, args, {
       stdio: ['pipe', 'pipe', 'pipe'],
@@ -185,13 +134,7 @@ export class ProcessManager extends EventEmitter {
     if (!handle) return false
 
     log(`Cancelling run ${runId}`)
-    handle.process.kill('SIGINT')
-
-    setTimeout(() => {
-      if (handle.process.exitCode === null) {
-        handle.process.kill('SIGTERM')
-      }
-    }, 5000)
+    gracefulKill(handle.process.pid ?? undefined, handle.process)
 
     return true
   }
