@@ -1,6 +1,8 @@
-# Clui CC — Command Line User Interface for Claude Code
+# Clui CC — Windows Edition
 
-A lightweight, transparent desktop overlay for [Claude Code](https://docs.anthropic.com/en/docs/claude-code) on macOS. Clui CC wraps the Claude Code CLI in a floating pill interface with multi-tab sessions, a permission approval UI, voice input, and a skills marketplace.
+A lightweight, transparent desktop overlay for [Claude Code](https://docs.anthropic.com/en/docs/claude-code) on Windows. Clui CC wraps the Claude Code CLI in a floating pill interface with multi-tab sessions, a permission approval UI, voice input, and a skills marketplace.
+
+> **This is a Windows port** of the original [lcoutodemos/clui-cc](https://github.com/lcoutodemos/clui-cc) macOS project. The core architecture and features are identical — only platform-specific plumbing has been adapted.
 
 ## Demo
 
@@ -19,122 +21,110 @@ A lightweight, transparent desktop overlay for [Claude Code](https://docs.anthro
 - **File & screenshot attachments** — paste images or attach files directly.
 - **Dual theme** — dark/light mode with system-follow option.
 
-## Why Clui CC Is Different
-
-- **Claude Code, but visual** — keep CLI power while getting a fast desktop UX for approvals, history, and multitasking.
-- **Human-in-the-loop safety** — tool calls can be reviewed/approved in-app before execution.
-- **Session-native workflow** — each tab runs an independent Claude session you can resume later.
-- **Mostly local-first** — core behavior runs through your local Claude CLI, with minimal network dependency.
-
-## Architecture At a Glance
-
-Clui CC is an Electron app with three layers:
-
-```
-Renderer (React UI) -> Preload bridge -> Main process (ControlPlane/RunManager/PermissionServer)
-```
-
-Flow:
-
-1. UI sends a prompt from a tab.
-2. Main process starts `claude -p` for that tab.
-3. Stream events are normalized and rendered live.
-4. Tool permission requests are intercepted and shown in the approval UI.
-5. Session state is tracked so you can resume work.
-
-See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the full technical deep-dive.
-
 ## Quick Start (Recommended)
 
-Run these commands one at a time:
+Run these commands one at a time in **Command Prompt** or **PowerShell**:
 
 **1) Clone the repo**
 
-```bash
-git clone https://github.com/lcoutodemos/clui-cc.git
+```bat
+git clone https://github.com/lcoutodemos/clui-cc.git clui-cc-win
 ```
 
 **2) Enter the project folder**
 
-```bash
-cd clui-cc
+```bat
+cd clui-cc-win
 ```
 
 **3) Start the app**
 
-```bash
-./start.command
+```bat
+start.bat
 ```
 
-Optional (install voice dependency automatically first):
-
-```bash
-./start.command --with-voice
-```
-
-`start.command` runs environment checks first and prints exact fix commands if something is missing. If checks pass, it installs dependencies, builds, and launches the app.
+`start.bat` runs environment checks first and prints fix instructions if something is missing. If all checks pass it installs dependencies, builds, and launches the app.
 
 To close the app:
 
-```bash
-./stop.command
+```bat
+stop.bat
 ```
 
-You can also double-click `start.command` and `stop.command` from Finder.
-
-Toggle the overlay: **Alt+Space** (or **Cmd+Shift+K** as fallback).
+Toggle the overlay: **Alt+Space** (or **Ctrl+Shift+K** as fallback).
 
 <details>
 <summary><strong>Setup Prerequisites (Detailed)</strong></summary>
 
-You need **macOS 13+**. Then install these one at a time — copy each command and paste it into Terminal.
+You need **Windows 10 version 1803 or newer** (required for the built-in `tar` command used during skill installation). Then install the following:
 
-**Step 1.** Install Xcode Command Line Tools (needed to compile native modules):
+---
 
-```bash
-xcode-select --install
-```
-
-**Step 2.** Install Node.js (recommended: current LTS such as 20 or 22; minimum supported: 18). Download from [nodejs.org](https://nodejs.org), or use Homebrew:
-
-```bash
-brew install node
-```
+**Step 1.** Install [Node.js](https://nodejs.org) — minimum v18, recommended v20 or v22 LTS.
 
 Verify it's on your PATH:
 
-```bash
+```bat
 node --version
+npm --version
 ```
 
-**Step 3.** Make sure Python has `setuptools` (needed by the native module compiler). On Python 3.12+ this is missing by default:
+---
 
-```bash
-python3 -m pip install --upgrade pip setuptools
+**Step 2.** Install Visual C++ Build Tools (required to compile `node-pty` and other native modules).
+
+Download and run the **Build Tools for Visual Studio** installer from [visualstudio.microsoft.com/visual-cpp-build-tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/). Select **"Desktop development with C++"**.
+
+Alternatively, from an elevated (Administrator) PowerShell:
+
+```powershell
+npm install -g windows-build-tools
 ```
+
+---
+
+**Step 3.** Install [Python 3](https://www.python.org/downloads/) (needed by the native module build system). During installation, check **"Add Python to PATH"**.
+
+---
 
 **Step 4.** Install Claude Code CLI:
 
-```bash
+```bat
 npm install -g @anthropic-ai/claude-code
 ```
 
+---
+
 **Step 5.** Authenticate Claude Code (follow the prompts that appear):
 
-```bash
+```bat
 claude
 ```
 
+---
+
 **Step 6.** Verify Claude Code is working (should print `2.1.x` or higher):
 
-```bash
+```bat
 claude --version
 ```
 
-**Optional:** Install Whisper for voice input:
+---
 
-```bash
-brew install whisper-cli
+**Optional:** Install Whisper for voice input.
+
+Clui CC looks for `whisper-cli.exe` or `whisper.exe` on your PATH, or in common locations such as:
+- `%USERPROFILE%\AppData\Local\Programs\whisper\`
+- `%USERPROFILE%\scoop\shims\`
+
+Download prebuilt binaries from [github.com/ggerganov/whisper.cpp](https://github.com/ggerganov/whisper.cpp/releases).
+
+Then download a model file:
+
+```powershell
+mkdir "$env:USERPROFILE\.local\share\whisper"
+curl -L -o "$env:USERPROFILE\.local\share\whisper\ggml-tiny.bin" `
+  https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin
 ```
 
 > **No API keys or `.env` file required.** Clui CC uses your existing Claude Code CLI authentication (Pro/Team/Enterprise subscription).
@@ -148,11 +138,8 @@ brew install whisper-cli
 
 If you are actively developing:
 
-```bash
+```bat
 npm install
-```
-
-```bash
 npm run dev
 ```
 
@@ -160,12 +147,21 @@ Renderer changes update instantly. Main-process changes require restarting `npm 
 
 ### Production Build
 
-```bash
+```bat
 npm run build
+npx electron .
 ```
 
-```bash
-npx electron .
+### Environment Diagnostics
+
+```bat
+npm run doctor
+```
+
+Or run directly:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\doctor.ps1
 ```
 
 </details>
@@ -186,7 +182,7 @@ Clui CC is an Electron app with three layers:
 │  Main Process                                    │
 │  ControlPlane → RunManager → claude -p (NDJSON)  │
 │  PermissionServer (HTTP hooks on 127.0.0.1)      │
-│  Marketplace catalog (GitHub raw fetch + cache)   │
+│  Marketplace catalog (GitHub raw fetch + cache)  │
 └─────────────────────────────────────────────────┘
 ```
 
@@ -196,19 +192,20 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full deep-dive.
 
 ```
 src/
-├── main/                   # Electron main process
-│   ├── claude/             # ControlPlane, RunManager, EventNormalizer
-│   ├── hooks/              # PermissionServer (PreToolUse HTTP hooks)
-│   ├── marketplace/        # Plugin catalog fetching + install
-│   ├── skills/             # Skill auto-installer
-│   └── index.ts            # Window creation, IPC handlers, tray
-├── renderer/               # React frontend
-│   ├── components/         # TabStrip, ConversationView, InputBar, etc.
-│   ├── stores/             # Zustand session store
-│   ├── hooks/              # Event listeners, health reconciliation
-│   └── theme.ts            # Dual palette + CSS custom properties
-├── preload/                # Secure IPC bridge (window.clui API)
-└── shared/                 # Canonical types, IPC channel definitions
+├── main/                    # Electron main process
+│   ├── claude/              # ControlPlane, RunManager, EventNormalizer
+│   ├── hooks/               # PermissionServer (PreToolUse HTTP hooks)
+│   ├── marketplace/         # Plugin catalog fetching + install
+│   ├── skills/              # Skill auto-installer
+│   ├── platform-utils.ts    # Cross-platform helpers (NEW — Windows port)
+│   └── index.ts             # Window creation, IPC handlers, tray
+├── renderer/                # React frontend
+│   ├── components/          # TabStrip, ConversationView, InputBar, etc.
+│   ├── stores/              # Zustand session store
+│   ├── hooks/               # Event listeners, health reconciliation
+│   └── theme.ts             # Dual palette + CSS custom properties
+├── preload/                 # Secure IPC bridge (window.clui API)
+└── shared/                  # Canonical types, IPC channel definitions
 ```
 
 ### How It Works
@@ -219,6 +216,23 @@ src/
 4. Tool permission requests arrive via HTTP hooks to `PermissionServer` (localhost only).
 5. The renderer polls backend health every 1.5s and reconciles tab state.
 6. Sessions are resumed with `--resume <session-id>` for continuity.
+
+### Windows-Specific Changes
+
+This port introduces `src/main/platform-utils.ts` which centralises all platform-specific logic:
+
+| Area | macOS original | Windows replacement |
+|------|---------------|---------------------|
+| Claude binary discovery | `/opt/homebrew/bin/claude`, zsh `whence` | `%APPDATA%\npm\claude.cmd`, `where claude` |
+| Login shell PATH | `/bin/zsh -lc "echo $PATH"` | `process.env.PATH` (already correct) |
+| Process termination | `SIGINT` → `SIGTERM` | `taskkill /PID … /T` |
+| Screenshot | `/usr/sbin/screencapture -i` | PowerShell + Snipping Tool |
+| Open in terminal | AppleScript → Terminal.app | `wt.exe` (Windows Terminal), fallback `cmd.exe` |
+| Skill download | `curl \| tar` (piped) | PowerShell `Invoke-WebRequest` + `tar` |
+| Whisper discovery | Homebrew paths | `%APPDATA%`, `%LOCALAPPDATA%`, Scoop shims |
+| Session path encoding | `/` → `-` | `\` and `/` → `-`, strip drive colon |
+| App icon | `icon.icns` | `icon.ico` |
+| Tray icon | `trayTemplate.png` (macOS template) | `tray.ico` |
 
 ### Network Behavior
 
@@ -235,29 +249,48 @@ No telemetry, analytics, or auto-update mechanisms. All core Claude Code interac
 
 ## Troubleshooting
 
-For setup issues and recovery commands, see [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md).
+Run the built-in diagnostics first:
 
-Quick self-check:
-
-```bash
+```bat
 npm run doctor
 ```
+
+Or directly:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\doctor.ps1
+```
+
+For general setup issues, see [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md).
+
+**Common Windows issues:**
+
+| Symptom | Fix |
+|---------|-----|
+| `npm install` fails with node-gyp errors | Install Visual C++ Build Tools and Python 3 |
+| `claude` not found on launch | Ensure `%APPDATA%\npm` is in your `PATH` |
+| Overlay doesn't appear | Try `Ctrl+Shift+K`; check the system tray |
+| Screenshot returns null | Run as a normal user (not Administrator); Snipping Tool must be available |
+| Voice input not working | Place `whisper-cli.exe` on `PATH` and download a model file |
+| `taskkill` errors on stop | The app wasn't running; this is harmless |
 
 ## Tested On
 
 | Component | Version |
 |-----------|---------|
-| macOS | 15.x (Sequoia) |
+| Windows | 10 (22H2), 11 |
 | Node.js | 20.x LTS, 22.x |
-| Python | 3.12 (with setuptools installed) |
+| Python | 3.12 |
+| Visual Studio Build Tools | 2022 |
 | Electron | 33.x |
 | Claude Code CLI | 2.1.71 |
 
 ## Known Limitations
 
-- **macOS only** — transparent overlay, tray icon, and node-pty are macOS-specific. Windows/Linux support is not currently implemented.
-- **Requires Claude Code CLI** — Clui CC is a UI layer, not a standalone AI client. You need an authenticated `claude` CLI.
-- **Permission mode** — uses `--permission-mode default`. The PTY interactive transport is legacy and disabled by default.
+- **Requires Claude Code CLI** — Clui CC is a UI layer, not a standalone AI client. You need an authenticated `claude` CLI install.
+- **Screenshot tool** — uses PowerShell + Snipping Tool; interactive region selection (like macOS `-i`) is not yet supported. The full screen is captured automatically.
+- **Voice input** — Whisper must be manually installed on Windows (no package manager equivalent of `brew install whisper-cli`).
+- **PTY transport** — the optional interactive PTY permission mode (`CLUI_INTERACTIVE_PERMISSIONS_PTY=1`) uses `node-pty` which requires Visual C++ Build Tools and compiles a native module at install time.
 
 ## License
 
