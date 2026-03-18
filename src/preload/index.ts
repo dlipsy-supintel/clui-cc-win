@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { IPC } from '../shared/types'
-import type { RunOptions, NormalizedEvent, HealthReport, EnrichedError, Attachment, SessionMeta, CatalogPlugin, SessionLoadMessage } from '../shared/types'
+import type { RunOptions, NormalizedEvent, HealthReport, EnrichedError, Attachment, SessionMeta, CatalogPlugin, SessionLoadMessage, InstalledApps } from '../shared/types'
 
 export interface CluiAPI {
   // ─── Request-response (renderer → main) ───
@@ -40,6 +40,9 @@ export interface CluiAPI {
   animateHeight(from: number, to: number, durationMs: number): Promise<void>
   hideWindow(): void
   isVisible(): Promise<boolean>
+  minimizeWindow(): void
+  toggleFullScreen(): Promise<void>
+  scanApps(): Promise<InstalledApps>
   /** OS-level click-through for transparent window regions */
   setIgnoreMouseEvents(ignore: boolean, options?: { forward?: boolean }): void
 
@@ -95,6 +98,9 @@ const api: CluiAPI = {
   animateHeight: (from, to, durationMs) =>
     ipcRenderer.invoke(IPC.ANIMATE_HEIGHT, { from, to, durationMs }),
   hideWindow: () => ipcRenderer.send(IPC.HIDE_WINDOW),
+  minimizeWindow: () => ipcRenderer.send(IPC.MINIMIZE_WINDOW),
+  toggleFullScreen: () => ipcRenderer.invoke(IPC.TOGGLE_FULLSCREEN),
+  scanApps: () => ipcRenderer.invoke(IPC.SCAN_APPS),
   isVisible: () => ipcRenderer.invoke(IPC.IS_VISIBLE),
   setIgnoreMouseEvents: (ignore, options) =>
     ipcRenderer.send(IPC.SET_IGNORE_MOUSE_EVENTS, ignore, options || {}),

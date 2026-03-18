@@ -218,6 +218,31 @@ ipcMain.on(IPC.HIDE_WINDOW, () => {
   mainWindow?.hide()
 })
 
+ipcMain.on(IPC.MINIMIZE_WINDOW, () => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    // On macOS panel windows, minimize() sends to dock — fall back to hide()
+    // if the window is not minimizable (panel type restriction)
+    try {
+      mainWindow.minimize()
+    } catch {
+      mainWindow.hide()
+    }
+  }
+})
+
+ipcMain.handle(IPC.TOGGLE_FULLSCREEN, () => {
+  if (!mainWindow || mainWindow.isDestroyed()) return
+  const isFs = mainWindow.isFullScreen()
+  if (!isFs) {
+    // Enable resizable before entering full screen (required on some platforms)
+    mainWindow.setResizable(true)
+    mainWindow.setFullScreen(true)
+  } else {
+    mainWindow.setFullScreen(false)
+    mainWindow.setResizable(false)
+  }
+})
+
 ipcMain.handle(IPC.IS_VISIBLE, () => {
   return mainWindow?.isVisible() ?? false
 })
@@ -788,6 +813,74 @@ ipcMain.handle(IPC.MARKETPLACE_INSTALL, async (_event, { repo, pluginName, marke
 ipcMain.handle(IPC.MARKETPLACE_UNINSTALL, async (_event, { pluginName }: { pluginName: string }) => {
   log(`IPC MARKETPLACE_UNINSTALL: ${pluginName}`)
   return uninstallPlugin(pluginName)
+})
+
+// ─── App Scanner ───
+
+interface AppInfo { name: string; bundleId: string; path: string }
+
+const APP_CANDIDATES = {
+  terminals: [
+    { name: 'Terminal', path: '/Applications/Utilities/Terminal.app' },
+    { name: 'iTerm', path: '/Applications/iTerm.app' },
+    { name: 'Warp', path: '/Applications/Warp.app' },
+    { name: 'Kitty', path: '/Applications/kitty.app' },
+    { name: 'Alacritty', path: '/Applications/Alacritty.app' },
+    { name: 'Hyper', path: '/Applications/Hyper.app' },
+    { name: 'WezTerm', path: '/Applications/WezTerm.app' },
+    { name: 'Tabby', path: '/Applications/Tabby.app' },
+  ],
+  editors: [
+    { name: 'Cursor', path: '/Applications/Cursor.app' },
+    { name: 'Visual Studio Code', path: '/Applications/Visual Studio Code.app' },
+    { name: 'VSCodium', path: '/Applications/VSCodium.app' },
+    { name: 'Zed', path: '/Applications/Zed.app' },
+    { name: 'Nova', path: '/Applications/Nova.app' },
+    { name: 'Sublime Text', path: '/Applications/Sublime Text.app' },
+    { name: 'TextEdit', path: '/Applications/TextEdit.app' },
+    { name: 'BBEdit', path: '/Applications/BBEdit.app' },
+    { name: 'Xcode', path: '/Applications/Xcode.app' },
+    { name: 'Fleet', path: '/Applications/Fleet.app' },
+  ],
+  browsers: [
+    { name: 'Safari', path: '/Applications/Safari.app' },
+    { name: 'Google Chrome', path: '/Applications/Google Chrome.app' },
+    { name: 'Firefox', path: '/Applications/Firefox.app' },
+    { name: 'Brave Browser', path: '/Applications/Brave Browser.app' },
+    { name: 'Arc', path: '/Applications/Arc.app' },
+    { name: 'Opera', path: '/Applications/Opera.app' },
+    { name: 'Vivaldi', path: '/Applications/Vivaldi.app' },
+    { name: 'Microsoft Edge', path: '/Applications/Microsoft Edge.app' },
+    { name: 'Orion', path: '/Applications/Orion.app' },
+  ],
+}
+
+function getBundleId(appPath: string): string {
+  try {
+    const { execSync } = require('child_process')
+    const result = execSync(
+      `defaults read "${appPath}/Contents/Info" CFBundleIdentifier 2>/dev/null`,
+      { encoding: 'utf8', timeout: 2000 }
+    ).trim()
+    return result
+  } catch {
+    return ''
+  }
+}
+
+function scanAppCategory(candidates: Array<{ name: string; path: string }>): AppInfo[] {
+  return candidates
+    .filter((c) => existsSync(c.path))
+    .map((c) => ({ name: c.name, bundleId: getBundleId(c.path), path: c.path }))
+}
+
+ipcMain.handle(IPC.SCAN_APPS, () => {
+  log('IPC SCAN_APPS')
+  return {
+    terminals: scanAppCategory(APP_CANDIDATES.terminals),
+    editors: scanAppCategory(APP_CANDIDATES.editors),
+    browsers: scanAppCategory(APP_CANDIDATES.browsers),
+  }
 })
 
 // ─── Theme Detection ───

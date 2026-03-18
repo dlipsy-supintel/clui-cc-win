@@ -1,6 +1,6 @@
 # Clui CC — Windows Edition
 
-A lightweight, transparent desktop overlay for [Claude Code](https://docs.anthropic.com/en/docs/claude-code) on Windows. Clui CC wraps the Claude Code CLI in a floating pill interface with multi-tab sessions, a permission approval UI, voice input, and a skills marketplace.
+A lightweight, transparent desktop overlay for [Claude Code](https://docs.anthropic.com/en/docs/claude-code) on Windows. Clui CC wraps the Claude Code CLI in a floating panel with multi-tab sessions, a permission approval UI, voice input, and a skills marketplace.
 
 > **This is a Windows port** of the original [lcoutodemos/clui-cc](https://github.com/lcoutodemos/clui-cc) macOS project. The core architecture and features are identical — only platform-specific plumbing has been adapted.
 
@@ -12,6 +12,9 @@ A lightweight, transparent desktop overlay for [Claude Code](https://docs.anthro
 
 ## Features
 
+- **Two view modes** — Mini Player (compact floating pill) and Maximal View (full panel with conversation history). Switch with the maximize/minimize buttons.
+- **Mini Player** — collapsed 56px pill showing the active session title and status; expands to a swing-out panel with input, action buttons, and model/permission badges.
+- **Maximal View** — full-height panel with traffic-light window controls, tab strip, conversation history, and a bottom action bar.
 - **Floating overlay** — transparent, click-through window that stays on top. Toggle with `Alt+Space`.
 - **Multi-tab sessions** — each tab spawns its own `claude -p` process with independent session state.
 - **Permission approval UI** — intercepts tool calls via PreToolUse HTTP hooks so you can review and approve/deny from the UI.
@@ -19,7 +22,7 @@ A lightweight, transparent desktop overlay for [Claude Code](https://docs.anthro
 - **Skills marketplace** — install plugins from Anthropic's GitHub repos without leaving Clui CC.
 - **Voice input** — local speech-to-text via Whisper (no cloud transcription).
 - **File & screenshot attachments** — paste images or attach files directly.
-- **Dual theme** — dark/light mode with system-follow option.
+- **Dual theme** — dark/light mode toggle in both Mini and Maximal views.
 
 ## Quick Start (Recommended)
 
@@ -166,6 +169,122 @@ powershell -ExecutionPolicy Bypass -File scripts\doctor.ps1
 
 </details>
 
+---
+
+## UI: Mini Player and Maximal View
+
+The interface has two distinct modes, both light and dark theme aware.
+
+### Mini Player — Collapsed
+
+A slim 56px pill that floats at the bottom of the screen.
+
+```
+[ C ]  I want to convert my codebase to...  [⤢] [☀] [⚙] [+] [∨]
+```
+
+| Element | Description |
+|---------|-------------|
+| `C` badge | Coral/orange badge identifying the Claude Code session |
+| Title | Active tab title with status dot (pulsing orange when running, red on error) |
+| `⤢` Maximize | Switches to Maximal View and widens the window to 820px |
+| `☀` Theme | Toggles dark/light mode |
+| `⚙` Settings | Opens settings (see [To Implement](#to-implement)) |
+| `+` New Tab | Opens a new Claude Code session tab |
+| `∨` Chevron | Expands to Mini Player — Expanded |
+
+### Mini Player — Expanded (Swing-Out Panel)
+
+Clicking the chevron or title expands a swing-out panel below the pill:
+
+```
+[ C ]  I want to convert my codebase to...  [⤢] [☀] [⚙] [+] [∧]
+┌──────────────────────────────────────────────────────────────┐
+│  Ask Claude Code anything...                           [🎤]  │
+├──────────────────────────────────────────────────────────────┤
+│        [✦ Skills]  [📷 Shot]  [📎 Attach]  [⏱ Hist]  [+ Tab] │
+├──────────────────────────────────────────────────────────────┤
+│                    [Opus 4.6]  [Ask]                         │
+└──────────────────────────────────────────────────────────────┘
+```
+
+| Control | Status |
+|---------|--------|
+| Input bar with voice (mic), send | ✅ Functional |
+| Skills / Marketplace button | ✅ Functional |
+| Screenshot attachment | ✅ Functional |
+| File attachment | ✅ Functional |
+| History picker | ✅ Functional |
+| New Tab | ✅ Functional |
+| Model badge (Opus / Sonnet / Haiku) | ✅ Functional |
+| Permission mode badge (Ask / Auto) | ✅ Functional |
+
+### Maximal View
+
+A full-height panel with complete conversation history.
+
+```
+● ● ●  [ New Tab × ]  [ I want to conver... ]  [+] [⏱] [⋯]  [☀] [⤡]
+┌────────────────────────────────────────────────────────────────────┐
+│  > write                                                           │
+│  Done. Here is what changed:                                       │
+│  ...conversation history...                                        │
+│  ~/projects/my-app  |  Opus 4.6  |  Ask           Open in CLI >_  │
+├────────────────────────────────────────────────────────────────────┤
+│  [📎] [📷] [✦]   Ask Claude Code anything...              [🎤] [↑] │
+└────────────────────────────────────────────────────────────────────┘
+```
+
+| Section | Description |
+|---------|-------------|
+| Traffic lights | Red = hide window, Yellow = hide window, Green = (coming soon) |
+| Tab strip | Multi-tab with status dots, add/close tabs |
+| Theme toggle | Sun/moon icon in title bar |
+| Minimize `⤡` | Returns to Mini Player, resets window to 460px wide |
+| Conversation area | Full scrollable message history, tool use timeline, permissions |
+| Status bar | Directory picker, model selector, permission mode, Open in CLI |
+| Bottom bar | Attach / Screenshot / Skills circles + full-width input pill |
+
+---
+
+## To Implement
+
+The following features are present as buttons in the UI but show a "coming soon" dialog when clicked. They are planned for future releases.
+
+### Settings Panel
+
+A full settings screen is designed (see `cc-ui-new` Pencil diagram) with these sections:
+
+| Section | Items | Notes |
+|---------|-------|-------|
+| **Controllers** | Window Selector, Screen Reader, Keyboard Control | Toggles for accessibility/input controller integrations |
+| **Voice Mode** | Enable Voice Mode, Voice selection, Speed slider | Extends the existing Whisper voice input |
+| **App Pickers** | CLI Terminal, Code Editor, Browser, Word Processor, Email | Pick which apps to use for "Open in…" actions |
+| **Claude Code CLI** | Open in CLI toggle, Path display | Show/edit the claude binary path |
+
+Currently, the settings button (`⚙`) in both Mini and Maximal views shows a native `alert()` dialog saying "This feature is coming soon."
+
+The existing `SettingsPopover` (accessible via `⋯` in the Maximal tab strip) provides working toggles for:
+- Dark / Light theme
+- Notification sound
+- Full width (Maximal mode)
+
+### Other Planned Capabilities
+
+| Feature | Notes |
+|---------|-------|
+| **Traffic light — full screen** | Green dot in Maximal title bar; requires native window API wiring |
+| **Traffic light — minimize** | Yellow dot; native minimize (separate from hide) |
+| **History action row button** | Mini expanded History circle currently uses `HistoryPicker` popover; link to full session browser view |
+| **Hypercontroller badge** | Status bar badge visible in design for session controller mode |
+| **"Open in CLI" bottom action** | CLI link in Maximal status bar is functional; dedicated bottom-bar shortcut planned |
+| **Window Control button** | Action button (`monitor` icon) in Maximal bottom bar — designed to manage the window/layout |
+| **Model picker in Mini** | Model badge in Mini expanded shows current model; tap-to-change planned |
+| **Permission badge in Mini** | Badge shows current mode; tap-to-change planned |
+| **Slash command menu in Maximal** | Slash commands work in input; visual treatment in new bottom bar layout not yet adapted |
+
+---
+
 <details>
 <summary><strong>Architecture and Internals</strong></summary>
 
@@ -197,16 +316,39 @@ src/
 │   ├── hooks/               # PermissionServer (PreToolUse HTTP hooks)
 │   ├── marketplace/         # Plugin catalog fetching + install
 │   ├── skills/              # Skill auto-installer
-│   ├── platform-utils.ts    # Cross-platform helpers (NEW — Windows port)
+│   ├── platform-utils.ts    # Cross-platform helpers (Windows port)
 │   └── index.ts             # Window creation, IPC handlers, tray
 ├── renderer/                # React frontend
-│   ├── components/          # TabStrip, ConversationView, InputBar, etc.
+│   ├── components/
+│   │   ├── MiniPlayer.tsx   # Mini Player (collapsed + expanded swing-out)
+│   │   ├── TabStrip.tsx     # Tab bar (used inside Maximal title bar)
+│   │   ├── ConversationView.tsx
+│   │   ├── InputBar.tsx     # Shared input (voice, slash commands, send)
+│   │   ├── StatusBar.tsx    # Directory, model, permission, CLI link
+│   │   ├── MarketplacePanel.tsx
+│   │   ├── SettingsPopover.tsx
+│   │   ├── HistoryPicker.tsx
+│   │   ├── PermissionCard.tsx
+│   │   └── PermissionDeniedCard.tsx
 │   ├── stores/              # Zustand session store
 │   ├── hooks/               # Event listeners, health reconciliation
+│   ├── App.tsx              # View mode router (Mini / Maximal)
 │   └── theme.ts             # Dual palette + CSS custom properties
 ├── preload/                 # Secure IPC bridge (window.clui API)
 └── shared/                  # Canonical types, IPC channel definitions
 ```
+
+### UI View Mode State
+
+| State | `expandedUI` | `isExpanded` | Description |
+|-------|-------------|-------------|-------------|
+| Mini Collapsed | `false` | `false` | 56px pill only |
+| Mini Expanded | `false` | `true` | Pill + swing-out input panel |
+| Maximal | `true` | `true` | Full conversation panel |
+
+- `expandedUI` is stored in `localStorage` via `useThemeStore` but always resets to `false` on launch.
+- `isExpanded` lives in `useSessionStore` and controls the swing-out panel in Mini mode.
+- Switching to Maximal calls `window.clui.setWindowWidth(820)`. Returning to Mini calls `setWindowWidth(460)`.
 
 ### How It Works
 
@@ -273,6 +415,7 @@ For general setup issues, see [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.m
 | Screenshot returns null | Run as a normal user (not Administrator); Snipping Tool must be available |
 | Voice input not working | Place `whisper-cli.exe` on `PATH` and download a model file |
 | `taskkill` errors on stop | The app wasn't running; this is harmless |
+| Mini Player doesn't resize to Maximal | `window.clui.setWindowWidth` requires the main process IPC handler to be present |
 
 ## Tested On
 
@@ -291,6 +434,8 @@ For general setup issues, see [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.m
 - **Screenshot tool** — uses PowerShell + Snipping Tool; interactive region selection (like macOS `-i`) is not yet supported. The full screen is captured automatically.
 - **Voice input** — Whisper must be manually installed on Windows (no package manager equivalent of `brew install whisper-cli`).
 - **PTY transport** — the optional interactive PTY permission mode (`CLUI_INTERACTIVE_PERMISSIONS_PTY=1`) uses `node-pty` which requires Visual C++ Build Tools and compiles a native module at install time.
+- **Settings panel** — the full settings screen (Controllers, Voice Mode, App Pickers, Claude Code CLI sections) is designed but not yet implemented. Clicking Settings shows a "coming soon" dialog.
+- **Window height in Maximal mode** — the panel height is controlled by the main process; dynamic height animation between Mini and Maximal is not yet wired up.
 
 ## License
 

@@ -294,6 +294,20 @@ export interface CatalogPlugin {
   isSkillMd: boolean      // true = individual SKILL.md (direct install), false = CLI plugin (bundle install)
 }
 
+// ─── App Scanner ───
+
+export interface AppInfo {
+  name: string       // display name (e.g. "Cursor")
+  bundleId: string   // com.todesktop.230313mzl4w4u92
+  path: string       // /Applications/Cursor.app
+}
+
+export interface InstalledApps {
+  terminals: AppInfo[]
+  editors: AppInfo[]
+  browsers: AppInfo[]
+}
+
 // ─── IPC Channel Names ───
 
 export const IPC = {
@@ -338,6 +352,8 @@ export const IPC = {
   RESIZE_HEIGHT: 'clui:resize-height',
   SET_WINDOW_WIDTH: 'clui:set-window-width',
   HIDE_WINDOW: 'clui:hide-window',
+  MINIMIZE_WINDOW: 'clui:minimize-window',
+  TOGGLE_FULLSCREEN: 'clui:toggle-fullscreen',
   WINDOW_SHOWN: 'clui:window-shown',
   SET_IGNORE_MOUSE_EVENTS: 'clui:set-ignore-mouse-events',
   IS_VISIBLE: 'clui:is-visible',
@@ -357,6 +373,9 @@ export const IPC = {
 
   // Permission mode
   SET_PERMISSION_MODE: 'clui:set-permission-mode',
+
+  // Settings
+  SCAN_APPS: 'clui:scan-apps',
 
   // Legacy (kept for backward compat during migration)
   STREAM_EVENT: 'clui:stream-event',

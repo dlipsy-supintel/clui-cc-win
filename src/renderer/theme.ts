@@ -134,6 +134,9 @@ const darkColors = {
   // Permission denied card
   permissionDeniedBorder: 'rgba(196, 112, 96, 0.3)',
   permissionDeniedHeaderBorder: 'rgba(196, 112, 96, 0.12)',
+
+  // Accent green (active toggles, status)
+  accentGreen: '#28C840',
 } as const
 
 const lightColors = {
@@ -264,6 +267,9 @@ const lightColors = {
   // Permission denied card
   permissionDeniedBorder: 'rgba(196, 112, 96, 0.3)',
   permissionDeniedHeaderBorder: 'rgba(196, 112, 96, 0.12)',
+
+  // Accent green (active toggles, status)
+  accentGreen: '#22c55e',
 } as const
 
 export type ColorPalette = { [K in keyof typeof darkColors]: string }

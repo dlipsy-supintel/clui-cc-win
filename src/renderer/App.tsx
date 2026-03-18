@@ -1,12 +1,17 @@
 import React, { useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Paperclip, Camera, HeadCircuit } from '@phosphor-icons/react'
+import {
+  Paperclip, Camera, HeadCircuit,
+  Sun, Moon,
+  ArrowsIn,
+} from '@phosphor-icons/react'
 import { TabStrip } from './components/TabStrip'
 import { ConversationView } from './components/ConversationView'
 import { InputBar } from './components/InputBar'
 import { StatusBar } from './components/StatusBar'
 import { MarketplacePanel } from './components/MarketplacePanel'
 import { PopoverLayerProvider } from './components/PopoverLayer'
+import { MiniPlayer } from './components/MiniPlayer'
 import { useClaudeEvents } from './hooks/useClaudeEvents'
 import { useHealthReconciliation } from './hooks/useHealthReconciliation'
 import { useSessionStore } from './stores/sessionStore'
@@ -23,15 +28,14 @@ export default function App() {
   const colors = useColors()
   const setSystemTheme = useThemeStore((s) => s.setSystemTheme)
   const expandedUI = useThemeStore((s) => s.expandedUI)
+  const setExpandedUI = useThemeStore((s) => s.setExpandedUI)
 
   // ─── Theme initialization ───
   useEffect(() => {
-    // Get initial OS theme — setSystemTheme respects themeMode (system/light/dark)
     window.clui.getTheme().then(({ isDark }) => {
       setSystemTheme(isDark)
     }).catch(() => {})
 
-    // Listen for OS theme changes
     const unsub = window.clui.onThemeChange((isDark) => {
       setSystemTheme(isDark)
     })
@@ -43,7 +47,6 @@ export default function App() {
       const homeDir = useSessionStore.getState().staticInfo?.homePath || '~'
       const tab = useSessionStore.getState().tabs[0]
       if (tab) {
-        // Set working directory to home by default (user hasn't chosen yet)
         useSessionStore.setState((s) => ({
           tabs: s.tabs.map((t, i) => (i === 0 ? { ...t, workingDirectory: homeDir, hasChosenDirectory: false } : t)),
         }))
@@ -57,7 +60,7 @@ export default function App() {
     })
   }, [])
 
-  // OS-level click-through (RAF-throttled to avoid per-pixel IPC)
+  // OS-level click-through
   useEffect(() => {
     if (!window.clui?.setIgnoreMouseEvents) return
     let lastIgnored: boolean | null = null
@@ -95,13 +98,6 @@ export default function App() {
   const marketplaceOpen = useSessionStore((s) => s.marketplaceOpen)
   const isRunning = activeTabStatus === 'running' || activeTabStatus === 'connecting'
 
-  // Layout dimensions — expandedUI widens and heightens the panel
-  const contentWidth = expandedUI ? 700 : spacing.contentWidth
-  const cardExpandedWidth = expandedUI ? 700 : 460
-  const cardCollapsedWidth = expandedUI ? 670 : 430
-  const cardCollapsedMargin = expandedUI ? 15 : 15
-  const bodyMaxHeight = expandedUI ? 520 : 400
-
   const handleScreenshot = useCallback(async () => {
     const result = await window.clui.takeScreenshot()
     if (!result) return
@@ -114,146 +110,315 @@ export default function App() {
     addAttachments(files)
   }, [addAttachments])
 
-  return (
-    <PopoverLayerProvider>
-      <div className="flex flex-col justify-end h-full" style={{ background: 'transparent' }}>
+  const handleMinimize = useCallback(() => {
+    setExpandedUI(false)
+    try { window.clui.setWindowWidth(spacing.contentWidth) } catch {}
+  }, [setExpandedUI])
 
-        {/* ─── 460px content column, centered. Circles overflow left. ─── */}
-        <div style={{ width: contentWidth, position: 'relative', margin: '0 auto', transition: 'width 0.26s cubic-bezier(0.4, 0, 0.1, 1)' }}>
-
-          <AnimatePresence initial={false}>
-            {marketplaceOpen && (
-              <div
-                data-clui-ui
-                style={{
-                  width: 720,
-                  maxWidth: 720,
-                  marginLeft: '50%',
-                  transform: 'translateX(-50%)',
-                  marginBottom: 14,
-                  position: 'relative',
-                  zIndex: 30,
-                }}
-              >
-                <motion.div
-                  initial={{ opacity: 0, y: 14, scale: 0.98 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 10, scale: 0.985 }}
-                  transition={TRANSITION}
-                >
-                  <div
-                    data-clui-ui
-                    className="glass-surface overflow-hidden no-drag"
-                    style={{
-                      borderRadius: 24,
-                      maxHeight: 470,
-                    }}
-                  >
-                    <MarketplacePanel />
-                  </div>
-                </motion.div>
-              </div>
-            )}
-          </AnimatePresence>
-
-          {/*
-            ─── Tabs / message shell ───
-            This always remains the chat shell. The marketplace is a separate
-            panel rendered above it, never inside it.
-          */}
-          <motion.div
-            data-clui-ui
-            className="overflow-hidden flex flex-col drag-region"
-            animate={{
-              width: isExpanded ? cardExpandedWidth : cardCollapsedWidth,
-              marginBottom: isExpanded ? 10 : -14,
-              marginLeft: isExpanded ? 0 : cardCollapsedMargin,
-              marginRight: isExpanded ? 0 : cardCollapsedMargin,
-              background: isExpanded ? colors.containerBg : colors.containerBgCollapsed,
-              borderColor: colors.containerBorder,
-              boxShadow: isExpanded ? colors.cardShadow : colors.cardShadowCollapsed,
-            }}
-            transition={TRANSITION}
+  // ─── MINI MODE ───
+  if (!expandedUI) {
+    return (
+      <PopoverLayerProvider>
+        <div
+          className="flex flex-col justify-end h-full"
+          style={{ background: 'transparent' }}
+        >
+          <div
             style={{
-              borderWidth: 1,
-              borderStyle: 'solid',
-              borderRadius: 20,
+              width: spacing.contentWidth,
+              margin: '0 auto',
               position: 'relative',
-              zIndex: isExpanded ? 20 : 10,
             }}
           >
-            {/* Tab strip — always mounted */}
-            <div className="no-drag">
-              <TabStrip />
-            </div>
-
-            {/* Body — chat history only; the marketplace is a separate overlay above */}
-            <motion.div
-              initial={false}
-              animate={{
-                height: isExpanded ? 'auto' : 0,
-                opacity: isExpanded ? 1 : 0,
-              }}
-              transition={TRANSITION}
-              className="overflow-hidden no-drag"
-            >
-              <div style={{ maxHeight: bodyMaxHeight }}>
-                <ConversationView />
-                <StatusBar />
-              </div>
-            </motion.div>
-          </motion.div>
-
-          {/* ─── Input row — circles float outside left ─── */}
-          {/* marginBottom: shadow buffer so the glass-surface drop shadow isn't clipped at the native window edge */}
-          <div data-clui-ui className="relative" style={{ minHeight: 46, zIndex: 15, marginBottom: 10 }}>
-            {/* Stacked circle buttons — expand on hover */}
-            <div
-              data-clui-ui
-              className="circles-out"
-            >
-              <div className="btn-stack">
-                {/* btn-1: Attach (front, rightmost) */}
-                <button
-                  className="stack-btn stack-btn-1 glass-surface"
-                  title="Attach file"
-                  onClick={handleAttachFile}
-                  disabled={isRunning}
-                >
-                  <Paperclip size={17} />
-                </button>
-                {/* btn-2: Screenshot (middle) */}
-                <button
-                  className="stack-btn stack-btn-2 glass-surface"
-                  title="Take screenshot"
-                  onClick={handleScreenshot}
-                  disabled={isRunning}
-                >
-                  <Camera size={17} />
-                </button>
-                {/* btn-3: Skills (back, leftmost) */}
-                <button
-                  className="stack-btn stack-btn-3 glass-surface"
-                  title="Skills & Plugins"
-                  onClick={() => useSessionStore.getState().toggleMarketplace()}
-                  disabled={isRunning}
-                >
-                  <HeadCircuit size={17} />
-                </button>
-              </div>
-            </div>
-
-            {/* Input pill */}
-            <div
-              data-clui-ui
-              className="glass-surface w-full"
-              style={{ minHeight: 50, borderRadius: 25, padding: '0 6px 0 16px', background: colors.inputPillBg }}
-            >
-              <InputBar />
-            </div>
+            <MiniPlayer />
           </div>
         </div>
+      </PopoverLayerProvider>
+    )
+  }
+
+  // ─── MAXIMAL MODE ───
+  const maxWidth = 820
+
+  return (
+    <PopoverLayerProvider>
+      <div
+        data-clui-ui
+        className="flex flex-col h-full"
+        style={{ background: 'transparent' }}
+      >
+        <motion.div
+          data-clui-ui
+          className="flex flex-col"
+          style={{
+            flex: 1,
+            margin: '10px 10px 10px 10px',
+            borderRadius: 16,
+            overflow: 'hidden',
+            background: colors.containerBg,
+            border: `1px solid ${colors.containerBorder}`,
+            boxShadow: colors.cardShadow,
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+          initial={{ opacity: 0, scale: 0.98 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={TRANSITION}
+        >
+          {/* ─── Maximal Title Bar ─── */}
+          <MaximalTitleBar onMinimize={handleMinimize} />
+
+          {/* ─── Conversation + Status ─── */}
+          <div
+            className="no-drag"
+            style={{
+              flex: 1,
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
+            }}
+          >
+            {/* Marketplace panel (overlay inside maximal) */}
+            <AnimatePresence>
+              {marketplaceOpen && (
+                <motion.div
+                  data-clui-ui
+                  className="no-drag"
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={TRANSITION}
+                  style={{
+                    borderBottom: `1px solid ${colors.containerBorder}`,
+                    maxHeight: 400,
+                    overflow: 'hidden',
+                  }}
+                >
+                  <MarketplacePanel />
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <div style={{ flex: 1, overflow: 'hidden' }}>
+              <ConversationView />
+              <StatusBar />
+            </div>
+          </div>
+
+          {/* ─── Bottom Bar ─── */}
+          <MaximalBottomBar
+            isRunning={isRunning}
+            onScreenshot={handleScreenshot}
+            onAttach={handleAttachFile}
+          />
+        </motion.div>
       </div>
     </PopoverLayerProvider>
+  )
+}
+
+// ─── Maximal Title Bar ───
+
+function MaximalTitleBar({ onMinimize }: { onMinimize: () => void }) {
+  const colors = useColors()
+  const themeMode = useThemeStore((s) => s.themeMode)
+  const setThemeMode = useThemeStore((s) => s.setThemeMode)
+
+  const handleMinimizeWindow = () => {
+    try { window.clui.minimizeWindow() } catch {}
+  }
+
+  const handleFullScreen = () => {
+    try { window.clui.toggleFullScreen() } catch {}
+  }
+
+  return (
+    <div
+      data-clui-ui
+      className="drag-region flex items-center"
+      style={{
+        height: 52,
+        background: colors.containerBg,
+        borderBottom: `1px solid ${colors.containerBorder}`,
+        padding: '0 16px',
+        flexShrink: 0,
+      }}
+    >
+      {/* Traffic lights */}
+      <div className="no-drag flex items-center gap-2" style={{ marginRight: 12 }}>
+        <button
+          onClick={() => window.clui.hideWindow()}
+          title="Hide window"
+          style={{
+            width: 12,
+            height: 12,
+            borderRadius: '50%',
+            background: '#FF5F57',
+            border: 'none',
+            cursor: 'pointer',
+            padding: 0,
+            display: 'block',
+          }}
+        />
+        <button
+          onClick={handleMinimizeWindow}
+          title="Minimize"
+          style={{
+            width: 12,
+            height: 12,
+            borderRadius: '50%',
+            background: '#FEBC2E',
+            border: 'none',
+            cursor: 'pointer',
+            padding: 0,
+            display: 'block',
+          }}
+        />
+        <button
+          onClick={handleFullScreen}
+          title="Toggle full screen"
+          style={{
+            width: 12,
+            height: 12,
+            borderRadius: '50%',
+            background: '#28C840',
+            border: 'none',
+            cursor: 'pointer',
+            padding: 0,
+            display: 'block',
+          }}
+        />
+      </div>
+
+      {/* Tab strip — grows to fill */}
+      <div className="no-drag flex-1 min-w-0">
+        <TabStrip />
+      </div>
+
+      {/* Right actions: theme toggle + minimize */}
+      <div className="no-drag flex items-center gap-0.5 flex-shrink-0">
+        <button
+          onClick={() => setThemeMode(themeMode === 'dark' ? 'light' : 'dark')}
+          title={themeMode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          className="w-7 h-7 flex items-center justify-center rounded-lg transition-colors"
+          style={{ color: colors.textTertiary, background: 'transparent', border: 'none', cursor: 'pointer' }}
+        >
+          {themeMode === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
+        </button>
+        <button
+          onClick={onMinimize}
+          title="Minimize to mini player"
+          className="w-7 h-7 flex items-center justify-center rounded-lg transition-colors"
+          style={{ color: colors.textTertiary, background: 'transparent', border: 'none', cursor: 'pointer' }}
+        >
+          <ArrowsIn size={15} />
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ─── Maximal Bottom Bar ───
+
+function MaximalBottomBar({
+  isRunning,
+  onScreenshot,
+  onAttach,
+}: {
+  isRunning: boolean
+  onScreenshot: () => void
+  onAttach: () => void
+}) {
+  const colors = useColors()
+
+  return (
+    <div
+      data-clui-ui
+      className="no-drag"
+      style={{
+        borderTop: `1px solid ${colors.containerBorder}`,
+        padding: '12px 16px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        background: colors.containerBg,
+        flexShrink: 0,
+      }}
+    >
+      {/* Action circles */}
+      <div className="flex items-center gap-2 flex-shrink-0">
+        <BottomBarCircle
+          title="Attach file"
+          onClick={onAttach}
+          disabled={isRunning}
+        >
+          <Paperclip size={17} />
+        </BottomBarCircle>
+        <BottomBarCircle
+          title="Take screenshot"
+          onClick={onScreenshot}
+          disabled={isRunning}
+        >
+          <Camera size={17} />
+        </BottomBarCircle>
+        <BottomBarCircle
+          title="Skills & Plugins"
+          onClick={() => useSessionStore.getState().toggleMarketplace()}
+          disabled={isRunning}
+        >
+          <HeadCircuit size={17} />
+        </BottomBarCircle>
+      </div>
+
+      {/* Input pill — grows to fill */}
+      <div
+        className="flex-1"
+        style={{
+          background: colors.inputPillBg,
+          border: `1px solid ${colors.containerBorder}`,
+          borderRadius: 25,
+          minHeight: 50,
+          padding: '0 6px 0 16px',
+        }}
+      >
+        <InputBar />
+      </div>
+    </div>
+  )
+}
+
+function BottomBarCircle({
+  onClick,
+  title,
+  disabled,
+  children,
+}: {
+  onClick: () => void
+  title: string
+  disabled?: boolean
+  children: React.ReactNode
+}) {
+  const colors = useColors()
+  return (
+    <button
+      onClick={onClick}
+      title={title}
+      disabled={disabled}
+      className="glass-surface"
+      style={{
+        width: 46,
+        height: 46,
+        borderRadius: '50%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: disabled ? colors.btnDisabled : colors.textTertiary,
+        cursor: disabled ? 'default' : 'pointer',
+        border: 'none',
+        flexShrink: 0,
+      }}
+    >
+      {children}
+    </button>
   )
 }
